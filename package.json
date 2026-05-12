@@ -1,0 +1,25 @@
+{
+  "name": "epub-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "epubjs": "^0.3.93",
+    "localforage": "^1.10.0",
+    "sortablejs": "^1.15.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "vite": "^6.2.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.13"
+  }
+}

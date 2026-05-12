@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>阅读中 - EPUB 阅读器</title>
+    <link rel="stylesheet" href="/src/reader.css" />
+  </head>
+  <body>
+    <!-- 侧边面板 -->
+    <div id="reader-sidebar">
+      <div id="toc-panel">
+        <div class="panel-header"><h3>目录</h3></div>
+        <ul id="toc-list"></ul>
+      </div>
+      <div id="bookmarks-panel" style="display:none">
+        <div class="panel-header"><h3>书签</h3></div>
+        <ul id="bookmarks-list"></ul>
+        <div id="bookmarks-empty" style="display:none">
+          <p>暂无书签</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主阅读区 -->
+    <div id="reader-main">
+      <!-- 顶栏 -->
+      <div id="reader-topbar">
+        <div class="topbar-left">
+          <button id="back-btn" title="返回书架">← 书架</button>
+          <button id="toc-btn" title="目录" class="icon-btn active-indicator" data-panel="toc">目录</button>
+          <button id="bookmarks-btn" title="书签" class="icon-btn active-indicator" data-panel="bookmarks">书签</button>
+        </div>
+
+        <div class="topbar-center">
+          <span id="book-title-display"></span>
+        </div>
+
+        <div class="topbar-right">
+          <button id="add-bookmark-btn" title="添加书签" class="icon-btn">🔖</button>
+          <button id="font-size-down" title="缩小字体" class="icon-btn">A－</button>
+          <button id="font-size-up" title="放大字体" class="icon-btn">A＋</button>
+          <select id="font-select" title="字体">
+            <option value="">默认字体</option>
+            <option value="黑体">黑体</option>
+            <option value="微软雅黑">微软雅黑</option>
+            <option value="宋体">宋体</option>
+            <option value="等线">等线</option>
+          </select>
+          <div id="theme-btns">
+            <button data-theme="default" title="白色主题" class="theme-btn active">白</button>
+            <button data-theme="sepia" title="护眼模式">米</button>
+            <button data-theme="night" title="夜间模式">暗</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 阅读器 -->
+      <div id="viewer-area">
+        <button id="prev-btn" class="nav-btn" title="上一页">‹</button>
+        <div id="viewer"></div>
+        <button id="next-btn" class="nav-btn" title="下一页">›</button>
+      </div>
+
+      <!-- 底部进度 -->
+      <div id="reader-footer">
+        <span id="chapter-info"></span>
+        <span id="progress-info"></span>
+      </div>
+    </div>
+
+    <!-- 初始加载遮罩 -->
+    <div id="loader">
+      <div class="spinner"></div>
+      <p>正在加载书籍…</p>
+    </div>
+
+    <script type="module" src="/src/reader.js"></script>
+  </body>
+</html>
