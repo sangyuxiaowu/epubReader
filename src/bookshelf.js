@@ -195,7 +195,7 @@ async function addSingleBook(file) {
   const { title, author, cover } = await extractMetadata(arrayBuffer);
   const id = crypto.randomUUID();
 
-  books[id] = { id, title, author, cover, fileName: file.name, addedAt: Date.now() };
+  books[id] = { id, title: title || file.name.replace(/\.epub$/i, ''), author, cover, fileName: file.name, addedAt: Date.now() };
   await dataStore.setItem(id, arrayBuffer);
 
   // 加入当前分类（"全部"模式下加入第一个分类）
@@ -233,7 +233,7 @@ async function extractMetadata(arrayBuffer) {
 
     book.destroy();
     return {
-      title: metadata.title || file_basename_no_ext(url) || '未知书名',
+      title: metadata.title || '',
       author: metadata.creator || '未知作者',
       cover,
     };
@@ -241,8 +241,6 @@ async function extractMetadata(arrayBuffer) {
     URL.revokeObjectURL(url);
   }
 }
-
-function file_basename_no_ext(url) { return ''; }
 
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
