@@ -133,6 +133,7 @@ body { display: flex; }
   padding: 0 12px;
   gap: 8px;
   flex-shrink: 0;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -151,16 +152,43 @@ body { display: flex; }
 .topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 #back-btn {
-  padding: 5px 10px;
-  background: rgba(255,255,255,0.1);
-  color: var(--text-topbar);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  color: var(--text-topbar-dim);
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 12.5px;
-  transition: background 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
-#back-btn:hover { background: rgba(255,255,255,0.18); }
+#back-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-topbar);
+}
+#back-btn:focus-visible {
+  outline: 2px solid rgba(126, 173, 241, 0.85);
+  outline-offset: 2px;
+}
+
+.back-btn-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.back-btn-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
+}
 
 .icon-btn {
   padding: 5px 10px;

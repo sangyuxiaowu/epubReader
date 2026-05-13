@@ -13,10 +13,10 @@
         <div class="panel-header"><h3>目录</h3></div>
         <ul id="toc-list"></ul>
       </div>
-      <div id="bookmarks-panel" style="display:none">
+      <div id="bookmarks-panel" hidden>
         <div class="panel-header"><h3>书签</h3></div>
         <ul id="bookmarks-list"></ul>
-        <div id="bookmarks-empty" style="display:none">
+        <div id="bookmarks-empty" hidden>
           <p>暂无书签</p>
         </div>
       </div>
@@ -27,7 +27,13 @@
       <!-- 顶栏 -->
       <div id="reader-topbar">
         <div class="topbar-left">
-          <button id="back-btn" title="返回书架">← 书架</button>
+          <button id="back-btn" title="返回书架" aria-label="返回书架">
+            <span class="back-btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                <path d="M624.788992 204.047974 585.205965 164.464026 219.560038 530.185011 585.205965 895.864013 624.788992 856.280986 298.663014 530.16105Z"></path>
+              </svg>
+            </span>
+          </button>
           <button id="toc-btn" title="目录" class="icon-btn active-indicator" data-panel="toc">目录</button>
           <button id="bookmarks-btn" title="书签" class="icon-btn active-indicator" data-panel="bookmarks">书签</button>
         </div>
@@ -38,8 +44,8 @@
 
         <div class="topbar-right">
           <button id="add-bookmark-btn" title="添加书签" class="icon-btn">🔖</button>
-          <button id="font-size-down" title="缩小字体" class="icon-btn">A－</button>
-          <button id="font-size-up" title="放大字体" class="icon-btn">A＋</button>
+          <button id="font-size-down" title="缩小字体" class="icon-btn">A<sup>－</sup></button>
+          <button id="font-size-up" title="放大字体" class="icon-btn">A<sup>＋</sup></sup></button>
           <select id="font-select" title="字体">
             <option value="">默认字体</option>
             <option value="黑体">黑体</option>
