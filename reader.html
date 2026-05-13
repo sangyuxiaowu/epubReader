@@ -79,8 +79,14 @@
 
       <!-- 底部进度 -->
       <div id="reader-footer">
-        <span id="chapter-info"></span>
-        <span id="progress-info"></span>
+        <div class="footer-meta">
+          <span id="chapter-info"></span>
+          <span id="progress-info"></span>
+        </div>
+        <div id="spread-btns" role="group" aria-label="页面显示模式">
+          <button type="button" class="spread-btn active" data-spread="single" aria-pressed="true">单页</button>
+          <button type="button" class="spread-btn" data-spread="double" aria-pressed="false">双页</button>
+        </div>
       </div>
     </div>
 

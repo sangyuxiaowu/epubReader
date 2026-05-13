@@ -12,6 +12,7 @@ let book = null;
 let rendition = null;
 let currentFontSize = 100; // 百分比
 let currentTheme = 'default';
+let currentSpreadMode = 'single';
 
 const themes = {
   default: { body: { background: '#f6f4ec', color: '#333333' } },
@@ -34,6 +35,7 @@ const chapterInfo = $('#chapter-info');
 const progressInfo = $('#progress-info');
 const tocBtn = $('#toc-btn');
 const bookmarksBtn = $('#bookmarks-btn');
+const spreadButtons = [...document.querySelectorAll('.spread-btn')];
 
 // ===== 初始化 =====
 async function init() {
@@ -58,6 +60,9 @@ async function init() {
     // 恢复字体大小
     currentFontSize = parseInt(localStorage.getItem(`fontsize_${bookId}`) || '100', 10);
 
+    // 恢复单双页显示偏好
+    applySpreadMode(localStorage.getItem(`spread_${bookId}`) || 'single', false);
+
     await loadBook(arrayBuffer);
     setupControls();
   } catch (error) {
@@ -70,7 +75,11 @@ async function init() {
 
 async function loadBook(arrayBuffer) {
   book = ePub(arrayBuffer);
-  rendition = book.renderTo(viewer, { width: '100%', height: '100%', spread: 'none' });
+  rendition = book.renderTo(viewer, {
+    width: '100%',
+    height: '100%',
+    spread: currentSpreadMode === 'double' ? 'always' : 'none',
+  });
 
   rendition.hooks.content.register((contents) => {
     applyThemeToContents(contents, currentTheme);
@@ -265,6 +274,28 @@ function applyTheme(name, save = true) {
   if (save) localStorage.setItem(`theme_${bookId}`, themeName);
 }
 
+function applySpreadMode(mode, save = true) {
+  const spreadMode = mode === 'double' ? 'double' : 'single';
+  currentSpreadMode = spreadMode;
+
+  spreadButtons.forEach((btn) => {
+    const isActive = btn.dataset.spread === spreadMode;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+  });
+
+  if (rendition) {
+    rendition.spread(spreadMode === 'double' ? 'always' : 'none', spreadMode === 'double' ? 0 : undefined);
+
+    if (rendition.manager?.isRendered()) {
+      const currentCfi = rendition.currentLocation()?.start?.cfi || localStorage.getItem(`progress_${bookId}`) || undefined;
+      if (currentCfi) rendition.display(currentCfi);
+    }
+  }
+
+  if (save) localStorage.setItem(`spread_${bookId}`, spreadMode);
+}
+
 // ===== 进度 =====
 function updateProgress(location) {
   if (!location) return;
@@ -310,6 +341,10 @@ function setupControls() {
 
   document.querySelectorAll('.theme-btn').forEach((btn) => {
     btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+  });
+
+  spreadButtons.forEach((btn) => {
+    btn.addEventListener('click', () => applySpreadMode(btn.dataset.spread));
   });
 
   viewer.addEventListener('click', () => {
