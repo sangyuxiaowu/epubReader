@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "epub-reader",
   "version": "0.1.0",
-  "identifier": "com.epubreader.desktop",
+  "identifier": "com.sangyuxiaowu.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

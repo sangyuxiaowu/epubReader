@@ -69,14 +69,26 @@
       </div>
     </div>
 
+    <!-- 删除确认弹窗 -->
+    <div id="confirm-modal" class="modal-overlay">
+      <div class="modal-box confirm-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <h3 id="confirm-modal-title">确认删除</h3>
+        <p id="confirm-modal-message"></p>
+        <div class="modal-btns">
+          <button id="confirm-modal-cancel" class="btn-secondary">取消</button>
+          <button id="confirm-modal-confirm" class="btn-primary btn-danger">删除</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 加载遮罩 -->
-    <div id="loading-overlay" style="display:none">
+    <div id="loading-overlay" class="hidden">
       <div class="spinner"></div>
       <p>正在处理…</p>
     </div>
 
     <!-- 隐藏文件输入 -->
-    <input id="file-input" type="file" accept=".epub" multiple style="display:none" />
+    <input id="file-input" type="file" accept=".epub" multiple hidden />
 
     <script type="module" src="/src/bookshelf.js"></script>
   </body>

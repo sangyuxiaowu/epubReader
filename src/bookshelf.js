@@ -17,6 +17,7 @@ let books = {}; // id → 书籍元数据
 let sortable = null;
 let contextBookId = null;
 let pendingCatAction = null; // { type: 'add' } | { type: 'rename', id }
+let pendingConfirmResolver = null;
 
 // ===== DOM 引用 =====
 const $ = (sel) => document.querySelector(sel);
@@ -32,6 +33,11 @@ const catModalTitle = $('#cat-modal-title');
 const catNameInput = $('#cat-name-input');
 const catModalConfirm = $('#cat-modal-confirm');
 const catModalCancel = $('#cat-modal-cancel');
+const confirmModal = $('#confirm-modal');
+const confirmModalTitle = $('#confirm-modal-title');
+const confirmModalMessage = $('#confirm-modal-message');
+const confirmModalConfirm = $('#confirm-modal-confirm');
+const confirmModalCancel = $('#confirm-modal-cancel');
 const contextMenu = $('#context-menu');
 const moveToMenu = $('#move-to-menu');
 const currentCatTitle = $('#current-cat-title');
@@ -252,7 +258,12 @@ function blobToDataUrl(blob) {
 
 // ===== 删除书籍 =====
 async function removeBook(id) {
-  if (!confirm('确认从书架移除此书？')) return;
+  const confirmed = await showConfirmModal({
+    title: '确认删除书籍',
+    message: '确认从书架移除此书？',
+    confirmText: '删除书籍',
+  });
+  if (!confirmed) return;
   delete books[id];
   state.categories.forEach((cat) => {
     cat.bookIds = cat.bookIds.filter((bid) => bid !== id);
@@ -279,6 +290,7 @@ async function moveBook(bookId, toCatId) {
 
 // ===== 分类管理 =====
 async function addCategory(name) {
+  if (state.categories.some((cat) => cat.name === name)) return;
   const cat = { id: `cat-${Date.now()}`, name, bookIds: [] };
   state.categories.push(cat);
   await saveData();
@@ -287,7 +299,11 @@ async function addCategory(name) {
 
 async function renameCategory(id, name) {
   const cat = state.categories.find((c) => c.id === id);
-  if (cat) { cat.name = name; await saveData(); renderSidebar(); }
+  if (!cat) return;
+  if (state.categories.some((item) => item.id !== id && item.name === name)) return;
+  cat.name = name;
+  await saveData();
+  renderSidebar();
 }
 
 async function deleteCat(id) {
@@ -295,9 +311,21 @@ async function deleteCat(id) {
   if (!cat) return;
 
   if (cat.bookIds.length > 0) {
-    if (!confirm(`删除分类「${cat.name}」？其中 ${cat.bookIds.length} 本书将移至默认书架。`)) return;
+    const confirmed = await showConfirmModal({
+      title: '确认删除分类',
+      message: `删除分类「${cat.name}」？\n其中 ${cat.bookIds.length} 本书将移至默认书架。`,
+      confirmText: '删除分类',
+    });
+    if (!confirmed) return;
     const first = state.categories.find((c) => c.id !== id);
     if (first) first.bookIds.push(...cat.bookIds.filter((bid) => !first.bookIds.includes(bid)));
+  } else {
+    const confirmed = await showConfirmModal({
+      title: '确认删除分类',
+      message: `删除分类「${cat.name}」？`,
+      confirmText: '删除分类',
+    });
+    if (!confirmed) return;
   }
 
   state.categories = state.categories.filter((c) => c.id !== id);
@@ -309,8 +337,8 @@ async function deleteCat(id) {
 
 // ===== 右键菜单 =====
 function showContextMenu(e, bookId) {
-  contextBookId = bookId;
   hideContextMenu();
+  contextBookId = bookId;
 
   // 构建「移动到分类」子菜单
   const currentCats = state.categories.filter((c) => {
@@ -354,12 +382,35 @@ function hideCatModal() {
   pendingCatAction = null;
 }
 
+function showConfirmModal({ title, message, confirmText = '确认' }) {
+  if (pendingConfirmResolver) pendingConfirmResolver(false);
+
+  confirmModalTitle.textContent = title;
+  confirmModalMessage.textContent = message;
+  confirmModalConfirm.textContent = confirmText;
+  confirmModal.classList.add('visible');
+  setTimeout(() => confirmModalConfirm.focus(), 60);
+
+  return new Promise((resolve) => {
+    pendingConfirmResolver = resolve;
+  });
+}
+
+function resolveConfirmModal(result) {
+  if (!pendingConfirmResolver) return;
+  const resolve = pendingConfirmResolver;
+  pendingConfirmResolver = null;
+  confirmModal.classList.remove('visible');
+  resolve(result);
+}
+
 async function confirmCatModal() {
   const name = catNameInput.value.trim();
   if (!name) return;
+  const action = pendingCatAction;
   hideCatModal();
-  if (pendingCatAction?.type === 'add') await addCategory(name);
-  else if (pendingCatAction?.type === 'rename') await renameCategory(pendingCatAction.id, name);
+  if (action?.type === 'add') await addCategory(name);
+  else if (action?.type === 'rename') await renameCategory(action.id, name);
 }
 
 // ===== 事件绑定 =====
@@ -376,6 +427,8 @@ function setupEvents() {
     if (e.key === 'Enter') confirmCatModal();
     if (e.key === 'Escape') hideCatModal();
   });
+  confirmModalConfirm.addEventListener('click', () => resolveConfirmModal(true));
+  confirmModalCancel.addEventListener('click', () => resolveConfirmModal(false));
 
   // 文件拖拽
   let dragCounter = 0;
@@ -401,9 +454,10 @@ function setupEvents() {
   contextMenu.addEventListener('click', async (e) => {
     const action = e.target.closest('[data-action]')?.dataset.action;
     const moveCat = e.target.closest('[data-cat]')?.dataset.cat;
-    if (action === 'open' && contextBookId) { hideContextMenu(); openBook(contextBookId); }
-    if (action === 'remove' && contextBookId) { hideContextMenu(); await removeBook(contextBookId); }
-    if (moveCat && contextBookId) { const bid = contextBookId; hideContextMenu(); await moveBook(bid, moveCat); }
+    const bookId = contextBookId;
+    if (action === 'open' && bookId) { hideContextMenu(); openBook(bookId); }
+    if (action === 'remove' && bookId) { hideContextMenu(); await removeBook(bookId); }
+    if (moveCat && bookId) { hideContextMenu(); await moveBook(bookId, moveCat); }
   });
   document.addEventListener('click', (e) => {
     if (!contextMenu.contains(e.target)) hideContextMenu();
@@ -411,6 +465,12 @@ function setupEvents() {
 
   // 点击遮罩关闭弹窗
   catModal.addEventListener('click', (e) => { if (e.target === catModal) hideCatModal(); });
+  confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal) resolveConfirmModal(false); });
+  document.addEventListener('keydown', (e) => {
+    if (!confirmModal.classList.contains('visible')) return;
+    if (e.key === 'Escape') resolveConfirmModal(false);
+    if (e.key === 'Enter') resolveConfirmModal(true);
+  });
 }
 
 // ===== 初始化 =====
