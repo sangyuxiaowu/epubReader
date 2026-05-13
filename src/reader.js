@@ -72,6 +72,12 @@ async function loadBook(arrayBuffer) {
   book = ePub(arrayBuffer);
   rendition = book.renderTo(viewer, { width: '100%', height: '100%', spread: 'none' });
 
+  rendition.hooks.content.register((contents) => {
+    contents.document.addEventListener('click', () => {
+      closeSidebarIfOpen();
+    });
+  });
+
   // 注册主题
   Object.entries(themes).forEach(([name, styles]) => rendition.themes.register(name, styles));
 
@@ -211,6 +217,14 @@ function closeSidebar() {
   bookmarksBtn.classList.remove('sidebar-open');
 }
 
+function closeSidebarIfOpen() {
+  if (sidebar.classList.contains('open')) closeSidebar();
+}
+
+function shouldKeepSidebarOpen(target) {
+  return sidebar.contains(target) || tocBtn.contains(target) || bookmarksBtn.contains(target);
+}
+
 function togglePanel(panel, btn) {
   const isOpen = sidebar.classList.contains('open');
   const isSamePanel = btn.classList.contains('sidebar-open');
@@ -283,12 +297,13 @@ function setupControls() {
     btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
   });
 
+  viewer.addEventListener('click', () => {
+    closeSidebarIfOpen();
+  });
+
   // 点击侧边栏外关闭
   document.addEventListener('click', (e) => {
-    if (sidebar.classList.contains('open') &&
-        !sidebar.contains(e.target) &&
-        !tocBtn.contains(e.target) &&
-        !bookmarksBtn.contains(e.target)) {
+    if (sidebar.classList.contains('open') && !shouldKeepSidebarOpen(e.target)) {
       closeSidebar();
     }
   });
