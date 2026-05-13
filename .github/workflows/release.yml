@@ -60,7 +60,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "CoverFlow ${{ github.ref_name }}"
+          releaseName: "${{ github.event.repository.name }} ${{ github.ref_name }}"
           releaseBody: "See attached assets for installers."
           releaseDraft: false
           prerelease: false
