@@ -53,10 +53,19 @@
             <option value="宋体">宋体</option>
             <option value="等线">等线</option>
           </select>
-          <div id="theme-btns">
-            <button data-theme="default" title="白色主题" class="theme-btn active">白</button>
-            <button data-theme="sepia" title="护眼模式">米</button>
-            <button data-theme="night" title="夜间模式">暗</button>
+          <div id="theme-btns" role="group" aria-label="阅读主题">
+            <button data-theme="default" title="浅色主题" class="theme-btn active" aria-pressed="true">
+              <span class="theme-btn-swatch" aria-hidden="true"></span>
+              <span class="theme-btn-label">浅</span>
+            </button>
+            <button data-theme="sepia" title="米色主题" class="theme-btn" aria-pressed="false">
+              <span class="theme-btn-swatch" aria-hidden="true"></span>
+              <span class="theme-btn-label">米</span>
+            </button>
+            <button data-theme="night" title="夜间主题" class="theme-btn" aria-pressed="false">
+              <span class="theme-btn-swatch" aria-hidden="true"></span>
+              <span class="theme-btn-label">夜</span>
+            </button>
           </div>
         </div>
       </div>

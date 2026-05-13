@@ -73,17 +73,14 @@ async function loadBook(arrayBuffer) {
   rendition = book.renderTo(viewer, { width: '100%', height: '100%', spread: 'none' });
 
   rendition.hooks.content.register((contents) => {
+    applyThemeToContents(contents, currentTheme);
     contents.document.addEventListener('click', () => {
       closeSidebarIfOpen();
     });
   });
 
-  // 注册主题
-  Object.entries(themes).forEach(([name, styles]) => rendition.themes.register(name, styles));
-
   // 应用已保存字体大小
   rendition.themes.fontSize(`${currentFontSize}%`);
-  rendition.themes.select(currentTheme);
 
   // 恢复阅读进度
   const savedCfi = localStorage.getItem(`progress_${bookId}`);
@@ -240,14 +237,32 @@ function togglePanel(panel, btn) {
 }
 
 // ===== 主题 =====
-function applyTheme(name, save = true) {
-  currentTheme = name;
-  document.body.dataset.theme = name;
-  document.querySelectorAll('.theme-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.theme === name);
+function applyThemeToContents(contents, themeName) {
+  const theme = themes[themeName] || themes.default;
+  contents.document.documentElement.style.backgroundColor = theme.body.background;
+  contents.document.documentElement.style.color = theme.body.color;
+  contents.css('background-color', theme.body.background, true);
+  contents.css('color', theme.body.color, true);
+}
+
+function applyThemeToRendition(themeName) {
+  if (!rendition) return;
+  rendition.getContents().forEach((contents) => {
+    applyThemeToContents(contents, themeName);
   });
-  if (rendition) rendition.themes.select(name);
-  if (save) localStorage.setItem(`theme_${bookId}`, name);
+}
+
+function applyTheme(name, save = true) {
+  const themeName = themes[name] ? name : 'default';
+  currentTheme = themeName;
+  document.body.dataset.theme = themeName;
+  document.querySelectorAll('.theme-btn').forEach((btn) => {
+    const isActive = btn.dataset.theme === themeName;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+  });
+  applyThemeToRendition(themeName);
+  if (save) localStorage.setItem(`theme_${bookId}`, themeName);
 }
 
 // ===== 进度 =====

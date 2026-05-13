@@ -1,6 +1,11 @@
 /* ===== 变量 & 重置 ===== */
 :root {
   --topbar-bg: #1e2130;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e0ddd7;
+  --footer-bg: rgba(255,255,255,0.7);
+  --footer-border: #e0ddd7;
+  --footer-text: #999999;
   --topbar-height: 50px;
   --footer-height: 36px;
   --sidebar-width: 260px;
@@ -10,6 +15,9 @@
   --accent: #4a6fa5;
   --reader-bg: #f6f4ec;
   --reader-text: #333;
+  --panel-bg: rgba(255,255,255,0.06);
+  --panel-border: rgba(255,255,255,0.08);
+  --panel-active: #4a6fa5;
   --nav-btn-bg: rgba(0,0,0,0.08);
   --nav-btn-hover: rgba(0,0,0,0.16);
 }
@@ -32,8 +40,8 @@ body { display: flex; }
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
   height: 100vh;
-  background: #fff;
-  border-right: 1px solid #e0ddd7;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -215,21 +223,75 @@ body { display: flex; }
 }
 #font-select option { background: #1e2130; color: #ccc; }
 
-#theme-btns { display: flex; gap: 3px; }
+#theme-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+}
+
 .theme-btn {
-  width: 28px;
-  height: 24px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 4px;
+  min-width: 52px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-topbar-dim);
-  background: rgba(255,255,255,0.07);
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  background: transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
-.theme-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-.theme-btn.active { border-color: var(--accent); color: #fff; background: var(--accent); }
+
+.theme-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+}
+
+.theme-btn:focus-visible {
+  outline: 2px solid rgba(126, 173, 241, 0.85);
+  outline-offset: 2px;
+}
+
+.theme-btn.active {
+  color: #ffffff;
+  background: var(--panel-active);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+.theme-btn-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+
+.theme-btn-label {
+  line-height: 1;
+}
+
+.theme-btn[data-theme="default"] .theme-btn-swatch {
+  background: linear-gradient(135deg, #f9f6ed 0%, #d8d0bc 100%);
+}
+
+.theme-btn[data-theme="sepia"] .theme-btn-swatch {
+  background: linear-gradient(135deg, #f4ecd8 0%, #b79667 100%);
+}
+
+.theme-btn[data-theme="night"] .theme-btn-swatch {
+  background: linear-gradient(135deg, #2f3445 0%, #0f1320 100%);
+}
 
 /* ===== 阅读器视口 ===== */
 #viewer-area {
@@ -266,14 +328,14 @@ body { display: flex; }
 /* ===== 底部 ===== */
 #reader-footer {
   height: var(--footer-height);
-  background: rgba(255,255,255,0.7);
-  border-top: 1px solid #e0ddd7;
+  background: var(--footer-bg);
+  border-top: 1px solid var(--footer-border);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
   font-size: 12.5px;
-  color: #999;
+  color: var(--footer-text);
   flex-shrink: 0;
 }
 
@@ -303,8 +365,88 @@ body { display: flex; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== 主题 ===== */
-body[data-theme="sepia"] { --reader-bg: #f4ecd8; --reader-text: #5c4b37; }
-body[data-theme="night"] { --reader-bg: #1a1a2a; --reader-text: #c8c8c8; }
-body[data-theme="night"] #reader-footer { background: rgba(26,26,42,0.8); border-top-color: #333; color: #666; }
+body[data-theme="default"] {
+  --reader-bg: #f6f4ec;
+  --reader-text: #333333;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e0ddd7;
+  --footer-bg: rgba(255,255,255,0.7);
+  --footer-border: #e0ddd7;
+  --footer-text: #999999;
+  --panel-bg: rgba(255,255,255,0.06);
+  --panel-border: rgba(255,255,255,0.08);
+  --panel-active: #4a6fa5;
+}
+
+body[data-theme="sepia"] {
+  --reader-bg: #f4ecd8;
+  --reader-text: #5c4b37;
+  --sidebar-bg: #fbf4e5;
+  --sidebar-border: #ded0b8;
+  --footer-bg: rgba(244,236,216,0.9);
+  --footer-border: #d8c4a1;
+  --footer-text: #8f7556;
+  --panel-bg: rgba(255,244,220,0.08);
+  --panel-border: rgba(255,240,208,0.12);
+  --panel-active: #9d7448;
+}
+
+body[data-theme="night"] {
+  --reader-bg: #1a1a2a;
+  --reader-text: #c8c8c8;
+  --sidebar-bg: #161927;
+  --sidebar-border: #2f3444;
+  --footer-bg: rgba(26,26,42,0.85);
+  --footer-border: #33384a;
+  --footer-text: #70778f;
+  --panel-bg: rgba(255,255,255,0.04);
+  --panel-border: rgba(255,255,255,0.08);
+  --panel-active: #4f78b8;
+}
+
+body[data-theme="sepia"] .panel-header {
+  border-bottom-color: #ded0b8;
+}
+
+body[data-theme="night"] .panel-header {
+  border-bottom-color: #2f3444;
+}
+
+body[data-theme="sepia"] #toc-list li a,
+body[data-theme="sepia"] #bookmarks-list li a {
+  color: #5c4b37;
+}
+
+body[data-theme="sepia"] #toc-list li a:hover,
+body[data-theme="sepia"] #bookmarks-list li a:hover {
+  background: rgba(157,116,72,0.08);
+}
+
+body[data-theme="sepia"] #toc-list li a.active {
+  color: #8a5f36;
+  background: rgba(157,116,72,0.12);
+}
+
+body[data-theme="night"] .panel-header h3,
+body[data-theme="night"] #toc-list li a,
+body[data-theme="night"] #bookmarks-list li a,
+body[data-theme="night"] #bookmarks-empty {
+  color: #c8c8d8;
+}
+
+body[data-theme="night"] #toc-list li ul li a {
+  color: #8991a8;
+}
+
+body[data-theme="night"] #toc-list li a:hover,
+body[data-theme="night"] #bookmarks-list li a:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+body[data-theme="night"] #toc-list li a.active {
+  color: #8db5ff;
+  background: rgba(79,120,184,0.2);
+}
+
 body[data-theme="night"] .nav-btn { color: rgba(255,255,255,0.2); }
 body[data-theme="night"] .nav-btn:hover { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); }
