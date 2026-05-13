@@ -1,10 +1,17 @@
-import localforage from 'localforage';
 import ePub from 'epubjs';
-import { listenDesktopEpubOpen, stashPendingDesktopPaths } from './desktop-files.js';
-
-// ===== 存储实例 =====
-const dataStore = localforage.createInstance({ name: 'epub-reader', storeName: 'data' });
-const metaStore = localforage.createInstance({ name: 'epub-reader', storeName: 'meta' });
+import {
+  listenDesktopEpubOpen,
+  registerCurrentWindowBookPath,
+  stashPendingDesktopPaths,
+} from './desktop-files.js';
+import {
+  cleanupBookClientState,
+  getBookContent,
+  loadLibraryData,
+  removeBookFromCollections,
+  removeStoredBookContent,
+  saveLibraryData,
+} from './library-store.js';
 
 // ===== 读取 URL 参数 =====
 const bookId = new URLSearchParams(location.search).get('id');
@@ -14,9 +21,12 @@ let rendition = null;
 let currentFontSize = 100; // 百分比
 let currentTheme = 'default';
 let currentSpreadMode = 'single';
+let pendingConfirmResolver = null;
 let pendingNoticeResolver = null;
 let currentBookMeta = null;
 let unlistenDesktopEpubOpen = null;
+let currentLibraryState = null;
+let currentLibraryBooks = {};
 
 const themes = {
   default: { body: { background: '#f6f4ec', color: '#333333' } },
@@ -61,34 +71,58 @@ const noticeModal = $('#notice-modal');
 const noticeModalTitle = $('#notice-modal-title');
 const noticeModalMessage = $('#notice-modal-message');
 const noticeModalConfirm = $('#notice-modal-confirm');
+const confirmModal = $('#confirm-modal');
+const confirmModalTitle = $('#confirm-modal-title');
+const confirmModalMessage = $('#confirm-modal-message');
+const confirmModalConfirm = $('#confirm-modal-confirm');
+const confirmModalCancel = $('#confirm-modal-cancel');
 
 // ===== 初始化 =====
 async function init() {
   try {
     setupNoticeModalEvents();
+    setupConfirmModalEvents();
     await setupDesktopFileForwarding();
 
-    if (!bookId) { goBack(); return; }
-
-    const arrayBuffer = await dataStore.getItem(bookId);
-    if (!arrayBuffer) {
-      loader.style.display = 'none';
-      await showNoticeModal({
-        title: '找不到书籍',
-        message: '找不到书籍数据，请重新添加。',
-      });
+    if (!bookId) {
+      await registerCurrentWindowBookPath(null);
       goBack();
       return;
     }
 
-    // 显示书名
-    const allBooks = await metaStore.getItem('books') || {};
-    const meta = allBooks[bookId];
-    if (meta) {
-      currentBookMeta = meta;
-      document.title = `${meta.title} - EPUB 阅读器`;
-      bookTitleDisplay.textContent = meta.title;
-      updateBookInfoPanel(meta);
+    const library = await loadLibraryData();
+    currentLibraryState = library.state;
+    currentLibraryBooks = library.books;
+
+    const meta = currentLibraryBooks[bookId];
+    if (!meta) {
+      loader.style.display = 'none';
+      await showNoticeModal({
+        title: '找不到书籍',
+        message: '找不到书籍记录，请重新添加。',
+      });
+      await registerCurrentWindowBookPath(null);
+      goBack();
+      return;
+    }
+
+    currentBookMeta = meta;
+    document.title = `${meta.title} - EPUB 阅读器`;
+    bookTitleDisplay.textContent = meta.title;
+    updateBookInfoPanel(meta);
+    await registerCurrentWindowBookPath(meta.path || null);
+
+    let arrayBuffer = null;
+    try {
+      arrayBuffer = await getBookContent(meta);
+    } catch (error) {
+      await handleMissingBook(meta, error);
+      return;
+    }
+
+    if (!arrayBuffer) {
+      await handleMissingBook(meta);
+      return;
     }
 
     // 恢复主题偏好
@@ -135,13 +169,18 @@ async function loadBook(arrayBuffer) {
   await loadBookDetails();
 
   // 恢复阅读进度
-  const savedCfi = localStorage.getItem(`progress_${bookId}`);
+  const savedCfi = currentBookMeta?.progressCfi || localStorage.getItem(`progress_${bookId}`);
   await rendition.display(savedCfi || undefined);
 
   // 监听位置变化
   rendition.on('relocated', (location) => {
     if (location?.start?.cfi) {
       localStorage.setItem(`progress_${bookId}`, location.start.cfi);
+      currentBookMeta = {
+        ...(currentBookMeta || {}),
+        progressCfi: location.start.cfi,
+      };
+      void persistCurrentBookMeta();
     }
     updateProgress(location);
     highlightTocItem(location?.start?.href);
@@ -357,10 +396,41 @@ async function loadBookDetails() {
 
 async function persistCurrentBookMeta() {
   if (!currentBookMeta || !bookId) return;
-  const allBooks = await metaStore.getItem('books') || {};
-  if (!allBooks[bookId]) return;
-  allBooks[bookId] = { ...allBooks[bookId], ...currentBookMeta };
-  await metaStore.setItem('books', allBooks);
+  if (!currentLibraryBooks[bookId]) return;
+  currentLibraryBooks[bookId] = { ...currentLibraryBooks[bookId], ...currentBookMeta };
+  await saveLibraryData(currentLibraryState, currentLibraryBooks);
+}
+
+async function handleMissingBook(meta, error = null) {
+  loader.style.display = 'none';
+
+  if (meta?.path) {
+    const confirmed = await showConfirmModal({
+      title: '找不到原始文件',
+      message: `无法读取当前书籍对应的源文件。\n${meta.path}\n\n是否从书架移除？`,
+      confirmText: '移除书籍',
+    });
+
+    if (confirmed) {
+      await removeCurrentBookFromLibrary();
+    }
+  } else {
+    await showNoticeModal({
+      title: '找不到书籍',
+      message: error ? `加载失败：${error.message || error}` : '找不到书籍数据，请重新添加。',
+    });
+  }
+
+  await registerCurrentWindowBookPath(null);
+  goBack();
+}
+
+async function removeCurrentBookFromLibrary() {
+  if (!bookId || !currentLibraryState) return;
+  const removedBook = removeBookFromCollections(currentLibraryState, currentLibraryBooks, bookId);
+  await removeStoredBookContent(removedBook);
+  await cleanupBookClientState(bookId);
+  await saveLibraryData(currentLibraryState, currentLibraryBooks);
 }
 
 function formatMetadataDate(value) {
@@ -476,6 +546,28 @@ function showNoticeModal({ title = '提示', message, confirmText = '知道了' 
   });
 }
 
+function showConfirmModal({ title = '确认操作', message, confirmText = '确认' }) {
+  if (pendingConfirmResolver) pendingConfirmResolver(false);
+
+  confirmModalTitle.textContent = title;
+  confirmModalMessage.textContent = message;
+  confirmModalConfirm.textContent = confirmText;
+  confirmModal.classList.add('visible');
+  setTimeout(() => confirmModalConfirm.focus(), 60);
+
+  return new Promise((resolve) => {
+    pendingConfirmResolver = resolve;
+  });
+}
+
+function resolveConfirmModal(result) {
+  if (!pendingConfirmResolver) return;
+  const resolve = pendingConfirmResolver;
+  pendingConfirmResolver = null;
+  confirmModal.classList.remove('visible');
+  resolve(result);
+}
+
 function resolveNoticeModal() {
   if (!pendingNoticeResolver) return;
   const resolve = pendingNoticeResolver;
@@ -499,6 +591,23 @@ function setupNoticeModalEvents() {
   noticeModal.dataset.bound = 'true';
 }
 
+function setupConfirmModalEvents() {
+  if (confirmModal.dataset.bound === 'true') return;
+
+  confirmModalConfirm.addEventListener('click', () => resolveConfirmModal(true));
+  confirmModalCancel.addEventListener('click', () => resolveConfirmModal(false));
+  confirmModal.addEventListener('click', (e) => {
+    if (e.target === confirmModal) resolveConfirmModal(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!confirmModal.classList.contains('visible')) return;
+    if (e.key === 'Escape') resolveConfirmModal(false);
+    if (e.key === 'Enter') resolveConfirmModal(true);
+  });
+
+  confirmModal.dataset.bound = 'true';
+}
+
 // ===== 进度 =====
 function updateProgress(location) {
   if (!location) return;
@@ -512,7 +621,10 @@ function updateProgress(location) {
   if (tocLinks.length) chapterInfo.textContent = tocLinks[0].textContent;
 }
 
-function goBack() { window.location.href = '/'; }
+function goBack() {
+  registerCurrentWindowBookPath(null).catch(() => {});
+  window.location.href = '/';
+}
 
 async function setupDesktopFileForwarding() {
   if (unlistenDesktopEpubOpen) return;

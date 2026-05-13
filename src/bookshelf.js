@@ -1,23 +1,31 @@
-import localforage from 'localforage';
 import Sortable from 'sortablejs';
 import ePub from 'epubjs';
 import {
   listenDesktopEpubOpen,
+  listenWindowDragDrop,
   readDesktopEpubFiles,
+  registerCurrentWindowBookPath,
   takePendingDesktopPaths,
 } from './desktop-files.js';
-
-// ===== 存储实例 =====
-const metaStore = localforage.createInstance({ name: 'epub-reader', storeName: 'meta' });
-const dataStore = localforage.createInstance({ name: 'epub-reader', storeName: 'data' });
+import {
+  checkDesktopBookPath,
+  cleanupBookClientState,
+  createBookPathKey,
+  createDefaultShelfState,
+  findBookByPath,
+  isDesktopApp,
+  loadLibraryData,
+  pickDesktopBookPaths,
+  removeBookFromCollections,
+  removeStoredBookContent,
+  saveLibraryData,
+  storeImportedBookContent,
+} from './library-store.js';
 
 // ===== 应用状态 =====
-const DEFAULT_CAT = { id: 'default', name: '默认书架', bookIds: [] };
+const IS_DESKTOP = isDesktopApp;
 
-let state = {
-  categories: [{ ...DEFAULT_CAT }],
-  currentCategoryId: 'all',
-};
+let state = createDefaultShelfState();
 let books = {}; // id → 书籍元数据
 let sortable = null;
 let contextBookId = null;
@@ -25,6 +33,7 @@ let pendingCatAction = null; // { type: 'add' } | { type: 'rename', id }
 let pendingConfirmResolver = null;
 let pendingNoticeResolver = null;
 let pendingDesktopImport = Promise.resolve();
+let unlistenWindowDragDrop = null;
 
 // ===== DOM 引用 =====
 const $ = (sel) => document.querySelector(sel);
@@ -57,15 +66,13 @@ const loadingOverlay = $('#loading-overlay');
 
 // ===== 持久化 =====
 async function loadData() {
-  const savedState = await metaStore.getItem('shelf-state');
-  if (savedState) state = savedState;
-  const savedBooks = await metaStore.getItem('books');
-  if (savedBooks) books = savedBooks;
+  const library = await loadLibraryData();
+  state = library.state;
+  books = library.books;
 }
 
 async function saveData() {
-  await metaStore.setItem('shelf-state', state);
-  await metaStore.setItem('books', books);
+  await saveLibraryData(state, books);
 }
 
 // ===== 渲染侧边栏 =====
@@ -172,8 +179,8 @@ function createBookCard(book) {
     </div>
   `;
 
-  card.querySelector('.btn-read').addEventListener('click', (e) => { e.stopPropagation(); openBook(book.id); });
-  card.addEventListener('click', () => openBook(book.id));
+  card.querySelector('.btn-read').addEventListener('click', (e) => { e.stopPropagation(); void openBook(book.id); });
+  card.addEventListener('click', () => { void openBook(book.id); });
   card.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, book.id); });
 
   return card;
@@ -183,7 +190,25 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function openBook(id) {
+async function openBook(id) {
+  const book = books[id];
+  if (!book) return;
+
+  if (IS_DESKTOP && book.path) {
+    const exists = await checkDesktopBookPath(book.path);
+    if (!exists) {
+      const confirmed = await showConfirmModal({
+        title: '找不到原始文件',
+        message: `无法找到「${book.title}」对应的源文件。\n是否从书架移除？`,
+        confirmText: '移除书籍',
+      });
+      if (confirmed) {
+        await removeBook(id, { skipConfirm: true });
+      }
+      return;
+    }
+  }
+
   window.location.href = `reader.html?id=${id}`;
 }
 
@@ -216,30 +241,90 @@ async function addBooks(files) {
 
 async function addSingleBook(file) {
   const arrayBuffer = await file.arrayBuffer();
-  const { title, author, cover } = await extractMetadata(arrayBuffer);
+  const metadata = await extractMetadata(arrayBuffer);
   const id = crypto.randomUUID();
 
-  books[id] = { id, title: title || file.name.replace(/\.epub$/i, ''), author, cover, fileName: file.name, addedAt: Date.now() };
-  await dataStore.setItem(id, arrayBuffer);
+  books[id] = {
+    id,
+    title: metadata.title || file.name.replace(/\.epub$/i, ''),
+    author: metadata.author,
+    cover: metadata.cover,
+    description: metadata.description,
+    publisher: metadata.publisher,
+    language: metadata.language,
+    pubdate: metadata.pubdate,
+    identifier: metadata.identifier,
+    modified_date: metadata.modifiedDate,
+    fileName: file.name,
+    addedAt: Date.now(),
+  };
+  await storeImportedBookContent(id, arrayBuffer);
 
   // 加入当前分类（"全部"模式下加入第一个分类）
-  const catId = state.currentCategoryId === 'all'
-    ? (state.categories[0]?.id ?? null)
-    : state.currentCategoryId;
-
-  if (catId) {
-    const cat = state.categories.find((c) => c.id === catId);
-    if (cat && !cat.bookIds.includes(id)) cat.bookIds.push(id);
-  }
+  rememberBookInCurrentCategory(id);
 
   await saveData();
   return id;
 }
 
-function toBrowserFile(desktopFile) {
-  return new File([new Uint8Array(desktopFile.bytes)], desktopFile.fileName, {
-    type: 'application/epub+zip',
-  });
+function rememberBookInCurrentCategory(bookId) {
+  const catId = state.currentCategoryId === 'all'
+    ? (state.categories[0]?.id ?? null)
+    : state.currentCategoryId;
+
+  if (!catId) return;
+  const cat = state.categories.find((item) => item.id === catId);
+  if (cat && !cat.bookIds.includes(bookId)) {
+    cat.bookIds.push(bookId);
+  }
+}
+
+async function addDesktopBook(desktopFile) {
+  const existingBook = findBookByPath(books, desktopFile.path);
+  const arrayBuffer = new Uint8Array(desktopFile.bytes).buffer;
+  const metadata = await extractMetadata(arrayBuffer);
+
+  if (existingBook) {
+    books[existingBook.id] = {
+      ...existingBook,
+      title: metadata.title || existingBook.title,
+      author: metadata.author || existingBook.author,
+      cover: metadata.cover || existingBook.cover,
+      description: metadata.description || existingBook.description,
+      publisher: metadata.publisher || existingBook.publisher,
+      language: metadata.language || existingBook.language,
+      pubdate: metadata.pubdate || existingBook.pubdate,
+      identifier: metadata.identifier || existingBook.identifier,
+      modified_date: metadata.modifiedDate || existingBook.modified_date,
+      fileName: desktopFile.fileName,
+      path: desktopFile.path,
+    };
+    rememberBookInCurrentCategory(existingBook.id);
+    await saveData();
+    return existingBook.id;
+  }
+
+  const id = crypto.randomUUID();
+  books[id] = {
+    id,
+    title: metadata.title || desktopFile.fileName.replace(/\.epub$/i, ''),
+    author: metadata.author,
+    cover: metadata.cover,
+    description: metadata.description,
+    publisher: metadata.publisher,
+    language: metadata.language,
+    pubdate: metadata.pubdate,
+    identifier: metadata.identifier,
+    modified_date: metadata.modifiedDate,
+    fileName: desktopFile.fileName,
+    path: desktopFile.path,
+    pathKey: createBookPathKey(desktopFile.path),
+    addedAt: Date.now(),
+  };
+
+  rememberBookInCurrentCategory(id);
+  await saveData();
+  return id;
 }
 
 async function importDesktopPaths(paths, openAfterImport = true) {
@@ -247,9 +332,17 @@ async function importDesktopPaths(paths, openAfterImport = true) {
     const desktopFiles = await readDesktopEpubFiles(paths);
     if (desktopFiles.length === 0) return;
 
-    const importedIds = await addBooks(desktopFiles.map(toBrowserFile));
+    loadingOverlay.style.display = 'flex';
+    const importedIds = [];
+    for (const desktopFile of desktopFiles) {
+      importedIds.push(await addDesktopBook(desktopFile));
+    }
+
+    renderSidebar();
+    renderBooks();
+
     if (openAfterImport && importedIds.length === 1) {
-      openBook(importedIds[0]);
+      await openBook(importedIds[0]);
     }
   } catch (error) {
     console.error('导入桌面文件失败:', error);
@@ -257,6 +350,8 @@ async function importDesktopPaths(paths, openAfterImport = true) {
       title: '导入失败',
       message: `导入外部 EPUB 失败: ${error.message || error}`,
     });
+  } finally {
+    loadingOverlay.style.display = 'none';
   }
 }
 
@@ -268,9 +363,32 @@ function queueDesktopImport(paths, openAfterImport = true) {
 }
 
 async function setupDesktopFileHandling() {
+  await registerCurrentWindowBookPath(null);
+
   const pendingPaths = await takePendingDesktopPaths();
   if (pendingPaths.length > 0) {
     await queueDesktopImport(pendingPaths, true);
+  }
+
+  if (IS_DESKTOP && !unlistenWindowDragDrop) {
+    unlistenWindowDragDrop = await listenWindowDragDrop(async ({ type, paths }) => {
+      if (type === 'enter' || type === 'over') {
+        dropOverlay.classList.add('active');
+        return;
+      }
+
+      if (type === 'leave') {
+        dropOverlay.classList.remove('active');
+        return;
+      }
+
+      if (type === 'drop') {
+        dropOverlay.classList.remove('active');
+        if (paths.length > 0) {
+          await queueDesktopImport(paths, false);
+        }
+      }
+    });
   }
 
   await listenDesktopEpubOpen(async ({ paths }) => {
@@ -293,19 +411,56 @@ async function extractMetadata(arrayBuffer) {
         const resp = await fetch(coverUrl);
         if (resp.ok) {
           const imgBlob = await resp.blob();
-          cover = await blobToDataUrl(imgBlob);
+          cover = await compressCoverBlob(imgBlob);
         }
       }
     } catch (_) { /* 封面获取失败时忽略 */ }
 
-    book.destroy();
     return {
       title: metadata.title || '',
       author: metadata.creator || '未知作者',
+      description: metadata.description || '',
+      publisher: metadata.publisher || '',
+      language: metadata.language || '',
+      pubdate: metadata.pubdate || '',
+      identifier: metadata.identifier || '',
+      modifiedDate: metadata.modified_date || '',
       cover,
     };
   } finally {
     book?.destroy();
+  }
+}
+
+async function compressCoverBlob(blob) {
+  if (!blob?.type?.startsWith('image/') || typeof createImageBitmap !== 'function') {
+    return blobToDataUrl(blob);
+  }
+
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(blob);
+    const maxEdge = 320;
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) return blobToDataUrl(blob);
+
+    context.drawImage(bitmap, 0, 0, width, height);
+    const compressed = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.78);
+    });
+
+    return compressed ? blobToDataUrl(compressed) : blobToDataUrl(blob);
+  } catch (_) {
+    return blobToDataUrl(blob);
+  } finally {
+    bitmap?.close?.();
   }
 }
 
@@ -319,20 +474,19 @@ function blobToDataUrl(blob) {
 }
 
 // ===== 删除书籍 =====
-async function removeBook(id) {
-  const confirmed = await showConfirmModal({
-    title: '确认删除书籍',
-    message: '确认从书架移除此书？',
-    confirmText: '删除书籍',
-  });
-  if (!confirmed) return;
-  delete books[id];
-  state.categories.forEach((cat) => {
-    cat.bookIds = cat.bookIds.filter((bid) => bid !== id);
-  });
-  await dataStore.removeItem(id);
-  await localforage.removeItem(`progress_${id}`);
-  await localforage.removeItem(`bookmarks_${id}`);
+async function removeBook(id, { skipConfirm = false } = {}) {
+  if (!skipConfirm) {
+    const confirmed = await showConfirmModal({
+      title: '确认删除书籍',
+      message: '确认从书架移除此书？',
+      confirmText: '删除书籍',
+    });
+    if (!confirmed) return;
+  }
+
+  const removedBook = removeBookFromCollections(state, books, id);
+  await removeStoredBookContent(removedBook);
+  await cleanupBookClientState(id);
   await saveData();
   renderSidebar();
   renderBooks();
@@ -500,8 +654,26 @@ async function confirmCatModal() {
 // ===== 事件绑定 =====
 function setupEvents() {
   // 添加书籍
-  addBookBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => { addBooks(e.target.files); fileInput.value = ''; });
+  addBookBtn.addEventListener('click', async () => {
+    if (!IS_DESKTOP) {
+      fileInput.click();
+      return;
+    }
+
+    const paths = await pickDesktopBookPaths();
+    if (paths.length > 0) {
+      await queueDesktopImport(paths, false);
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (IS_DESKTOP) {
+      fileInput.value = '';
+      return;
+    }
+    void addBooks(e.target.files);
+    fileInput.value = '';
+  });
 
   // 添加分类
   addCatBtn.addEventListener('click', showAddCat);
@@ -516,31 +688,38 @@ function setupEvents() {
   noticeModalConfirm.addEventListener('click', resolveNoticeModal);
 
   // 文件拖拽
-  let dragCounter = 0;
-  document.addEventListener('dragenter', (e) => {
-    const hasFile = [...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file');
-    if (!hasFile) return;
-    dragCounter++;
-    dropOverlay.classList.add('active');
-  });
-  document.addEventListener('dragleave', () => {
-    dragCounter--;
-    if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('active'); }
-  });
-  document.addEventListener('dragover', (e) => e.preventDefault());
-  document.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dragCounter = 0;
-    dropOverlay.classList.remove('active');
-    if (e.dataTransfer?.files?.length) addBooks(e.dataTransfer.files);
-  });
+  if (!IS_DESKTOP) {
+    let dragCounter = 0;
+    document.addEventListener('dragenter', (e) => {
+      const hasFile = [...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file');
+      if (!hasFile) return;
+      dragCounter++;
+      dropOverlay.classList.add('active');
+    });
+    document.addEventListener('dragleave', () => {
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        dropOverlay.classList.remove('active');
+      }
+    });
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      dropOverlay.classList.remove('active');
+      if (e.dataTransfer?.files?.length) {
+        void addBooks(e.dataTransfer.files);
+      }
+    });
+  }
 
   // 右键菜单
   contextMenu.addEventListener('click', async (e) => {
     const action = e.target.closest('[data-action]')?.dataset.action;
     const moveCat = e.target.closest('[data-cat]')?.dataset.cat;
     const bookId = contextBookId;
-    if (action === 'open' && bookId) { hideContextMenu(); openBook(bookId); }
+    if (action === 'open' && bookId) { hideContextMenu(); await openBook(bookId); }
     if (action === 'remove' && bookId) { hideContextMenu(); await removeBook(bookId); }
     if (moveCat && bookId) { hideContextMenu(); await moveBook(bookId, moveCat); }
   });
