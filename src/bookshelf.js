@@ -18,6 +18,7 @@ let sortable = null;
 let contextBookId = null;
 let pendingCatAction = null; // { type: 'add' } | { type: 'rename', id }
 let pendingConfirmResolver = null;
+let pendingNoticeResolver = null;
 
 // ===== DOM 引用 =====
 const $ = (sel) => document.querySelector(sel);
@@ -38,6 +39,10 @@ const confirmModalTitle = $('#confirm-modal-title');
 const confirmModalMessage = $('#confirm-modal-message');
 const confirmModalConfirm = $('#confirm-modal-confirm');
 const confirmModalCancel = $('#confirm-modal-cancel');
+const noticeModal = $('#notice-modal');
+const noticeModalTitle = $('#notice-modal-title');
+const noticeModalMessage = $('#notice-modal-message');
+const noticeModalConfirm = $('#notice-modal-confirm');
 const contextMenu = $('#context-menu');
 const moveToMenu = $('#move-to-menu');
 const currentCatTitle = $('#current-cat-title');
@@ -190,7 +195,11 @@ async function addBooks(files) {
     renderBooks();
   } catch (err) {
     console.error('添加书籍失败:', err);
-    alert(`添加书籍失败: ${err.message}`);
+    loadingOverlay.style.display = 'none';
+    await showNoticeModal({
+      title: '添加书籍失败',
+      message: `添加书籍失败: ${err.message}`,
+    });
   } finally {
     loadingOverlay.style.display = 'none';
   }
@@ -404,6 +413,28 @@ function resolveConfirmModal(result) {
   resolve(result);
 }
 
+function showNoticeModal({ title = '提示', message, confirmText = '知道了' }) {
+  if (pendingNoticeResolver) pendingNoticeResolver();
+
+  noticeModalTitle.textContent = title;
+  noticeModalMessage.textContent = message;
+  noticeModalConfirm.textContent = confirmText;
+  noticeModal.classList.add('visible');
+  setTimeout(() => noticeModalConfirm.focus(), 60);
+
+  return new Promise((resolve) => {
+    pendingNoticeResolver = resolve;
+  });
+}
+
+function resolveNoticeModal() {
+  if (!pendingNoticeResolver) return;
+  const resolve = pendingNoticeResolver;
+  pendingNoticeResolver = null;
+  noticeModal.classList.remove('visible');
+  resolve();
+}
+
 async function confirmCatModal() {
   const name = catNameInput.value.trim();
   if (!name) return;
@@ -429,6 +460,7 @@ function setupEvents() {
   });
   confirmModalConfirm.addEventListener('click', () => resolveConfirmModal(true));
   confirmModalCancel.addEventListener('click', () => resolveConfirmModal(false));
+  noticeModalConfirm.addEventListener('click', resolveNoticeModal);
 
   // 文件拖拽
   let dragCounter = 0;
@@ -466,7 +498,12 @@ function setupEvents() {
   // 点击遮罩关闭弹窗
   catModal.addEventListener('click', (e) => { if (e.target === catModal) hideCatModal(); });
   confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal) resolveConfirmModal(false); });
+  noticeModal.addEventListener('click', (e) => { if (e.target === noticeModal) resolveNoticeModal(); });
   document.addEventListener('keydown', (e) => {
+    if (noticeModal.classList.contains('visible')) {
+      if (e.key === 'Escape' || e.key === 'Enter') resolveNoticeModal();
+      return;
+    }
     if (!confirmModal.classList.contains('visible')) return;
     if (e.key === 'Escape') resolveConfirmModal(false);
     if (e.key === 'Enter') resolveConfirmModal(true);

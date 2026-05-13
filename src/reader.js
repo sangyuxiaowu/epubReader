@@ -13,6 +13,7 @@ let rendition = null;
 let currentFontSize = 100; // 百分比
 let currentTheme = 'default';
 let currentSpreadMode = 'single';
+let pendingNoticeResolver = null;
 
 const themes = {
   default: { body: { background: '#f6f4ec', color: '#333333' } },
@@ -36,14 +37,28 @@ const progressInfo = $('#progress-info');
 const tocBtn = $('#toc-btn');
 const bookmarksBtn = $('#bookmarks-btn');
 const spreadButtons = [...document.querySelectorAll('.spread-btn')];
+const noticeModal = $('#notice-modal');
+const noticeModalTitle = $('#notice-modal-title');
+const noticeModalMessage = $('#notice-modal-message');
+const noticeModalConfirm = $('#notice-modal-confirm');
 
 // ===== 初始化 =====
 async function init() {
   try {
+    setupNoticeModalEvents();
+
     if (!bookId) { goBack(); return; }
 
     const arrayBuffer = await dataStore.getItem(bookId);
-    if (!arrayBuffer) { alert('找不到书籍数据，请重新添加。'); goBack(); return; }
+    if (!arrayBuffer) {
+      loader.style.display = 'none';
+      await showNoticeModal({
+        title: '找不到书籍',
+        message: '找不到书籍数据，请重新添加。',
+      });
+      goBack();
+      return;
+    }
 
     // 显示书名
     const allBooks = await metaStore.getItem('books') || {};
@@ -68,7 +83,10 @@ async function init() {
   } catch (error) {
     console.error('加载 EPUB 失败:', error);
     loader.style.display = 'none';
-    alert('加载书籍失败，请重新导入后重试。');
+    await showNoticeModal({
+      title: '加载失败',
+      message: '加载书籍失败，请重新导入后重试。',
+    });
     goBack();
   }
 }
@@ -294,6 +312,43 @@ function applySpreadMode(mode, save = true) {
   }
 
   if (save) localStorage.setItem(`spread_${bookId}`, spreadMode);
+}
+
+function showNoticeModal({ title = '提示', message, confirmText = '知道了' }) {
+  if (pendingNoticeResolver) pendingNoticeResolver();
+
+  noticeModalTitle.textContent = title;
+  noticeModalMessage.textContent = message;
+  noticeModalConfirm.textContent = confirmText;
+  noticeModal.classList.add('visible');
+  setTimeout(() => noticeModalConfirm.focus(), 60);
+
+  return new Promise((resolve) => {
+    pendingNoticeResolver = resolve;
+  });
+}
+
+function resolveNoticeModal() {
+  if (!pendingNoticeResolver) return;
+  const resolve = pendingNoticeResolver;
+  pendingNoticeResolver = null;
+  noticeModal.classList.remove('visible');
+  resolve();
+}
+
+function setupNoticeModalEvents() {
+  if (noticeModal.dataset.bound === 'true') return;
+
+  noticeModalConfirm.addEventListener('click', resolveNoticeModal);
+  noticeModal.addEventListener('click', (e) => {
+    if (e.target === noticeModal) resolveNoticeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!noticeModal.classList.contains('visible')) return;
+    if (e.key === 'Escape' || e.key === 'Enter') resolveNoticeModal();
+  });
+
+  noticeModal.dataset.bound = 'true';
 }
 
 // ===== 进度 =====
