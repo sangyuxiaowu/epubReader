@@ -37,6 +37,8 @@ const progressInfo = $('#progress-info');
 const tocBtn = $('#toc-btn');
 const bookmarksBtn = $('#bookmarks-btn');
 const spreadButtons = [...document.querySelectorAll('.spread-btn')];
+const settingsBtn = $('#settings-btn');
+const settingsPanel = $('#settings-panel');
 const noticeModal = $('#notice-modal');
 const noticeModalTitle = $('#notice-modal-title');
 const noticeModalMessage = $('#notice-modal-message');
@@ -263,6 +265,23 @@ function togglePanel(panel, btn) {
   }
 }
 
+function closeSettingsPanel() {
+  settingsPanel.hidden = true;
+  settingsBtn.classList.remove('settings-open');
+  settingsBtn.setAttribute('aria-expanded', 'false');
+}
+
+function openSettingsPanel() {
+  settingsPanel.hidden = false;
+  settingsBtn.classList.add('settings-open');
+  settingsBtn.setAttribute('aria-expanded', 'true');
+}
+
+function toggleSettingsPanel() {
+  if (settingsPanel.hidden) openSettingsPanel();
+  else closeSettingsPanel();
+}
+
 // ===== 主题 =====
 function applyThemeToContents(contents, themeName) {
   const theme = themes[themeName] || themes.default;
@@ -398,6 +417,11 @@ function setupControls() {
     btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
   });
 
+  settingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSettingsPanel();
+  });
+
   spreadButtons.forEach((btn) => {
     btn.addEventListener('click', () => applySpreadMode(btn.dataset.spread));
   });
@@ -408,8 +432,18 @@ function setupControls() {
 
   // 点击侧边栏外关闭
   document.addEventListener('click', (e) => {
+    if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
+      closeSettingsPanel();
+    }
+
     if (sidebar.classList.contains('open') && !shouldKeepSidebarOpen(e.target)) {
       closeSidebar();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !settingsPanel.hidden) {
+      closeSettingsPanel();
     }
   });
 }

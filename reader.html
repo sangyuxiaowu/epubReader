@@ -46,26 +46,43 @@
           <button id="add-bookmark-btn" title="添加书签" class="icon-btn">🔖</button>
           <button id="font-size-down" title="缩小字体" class="icon-btn">A<sup>－</sup></button>
           <button id="font-size-up" title="放大字体" class="icon-btn">A<sup>＋</sup></sup></button>
-          <select id="font-select" title="字体">
-            <option value="">默认字体</option>
-            <option value="黑体">黑体</option>
-            <option value="微软雅黑">微软雅黑</option>
-            <option value="宋体">宋体</option>
-            <option value="等线">等线</option>
-          </select>
-          <div id="theme-btns" role="group" aria-label="阅读主题">
-            <button data-theme="default" title="浅色主题" class="theme-btn active" aria-pressed="true">
-              <span class="theme-btn-swatch" aria-hidden="true"></span>
-              <span class="theme-btn-label">浅</span>
+          <div class="settings-menu">
+            <button id="settings-btn" title="阅读设置" class="icon-btn" aria-label="阅读设置" aria-haspopup="dialog" aria-expanded="false">
+              <span class="settings-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"></path>
+                </svg>
+              </span>
             </button>
-            <button data-theme="sepia" title="米色主题" class="theme-btn" aria-pressed="false">
-              <span class="theme-btn-swatch" aria-hidden="true"></span>
-              <span class="theme-btn-label">米</span>
-            </button>
-            <button data-theme="night" title="夜间主题" class="theme-btn" aria-pressed="false">
-              <span class="theme-btn-swatch" aria-hidden="true"></span>
-              <span class="theme-btn-label">夜</span>
-            </button>
+            <div id="settings-panel" class="settings-panel" hidden>
+              <div class="settings-section">
+                <label class="settings-label" for="font-select">字体</label>
+                <select id="font-select" title="字体">
+                  <option value="">默认字体</option>
+                  <option value="黑体">黑体</option>
+                  <option value="微软雅黑">微软雅黑</option>
+                  <option value="宋体">宋体</option>
+                  <option value="等线">等线</option>
+                </select>
+              </div>
+              <div class="settings-section">
+                <div class="settings-label">主题</div>
+                <div id="theme-btns" role="group" aria-label="阅读主题">
+                  <button data-theme="default" title="浅色主题" class="theme-btn active" aria-pressed="true">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">浅</span>
+                  </button>
+                  <button data-theme="sepia" title="米色主题" class="theme-btn" aria-pressed="false">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">米</span>
+                  </button>
+                  <button data-theme="night" title="夜间主题" class="theme-btn" aria-pressed="false">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">夜</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
