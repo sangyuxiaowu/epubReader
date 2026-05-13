@@ -2,8 +2,14 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 const host = process.env.TAURI_DEV_HOST;
+let base = process.env.VITE_BASE || '/';
+
+if (!base.endsWith('/')) {
+  base += '/';
+}
 
 export default defineConfig({
+  base,
   build: {
     rollupOptions: {
       input: {
