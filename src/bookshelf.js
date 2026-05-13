@@ -212,10 +212,9 @@ async function addSingleBook(file) {
 }
 
 async function extractMetadata(arrayBuffer) {
-  const blob = new Blob([arrayBuffer], { type: 'application/epub+zip' });
-  const url = URL.createObjectURL(blob);
+  let book = null;
   try {
-    const book = ePub(url);
+    book = ePub(arrayBuffer);
     await book.ready;
     const metadata = await book.loaded.metadata;
 
@@ -238,7 +237,7 @@ async function extractMetadata(arrayBuffer) {
       cover,
     };
   } finally {
-    URL.revokeObjectURL(url);
+    book?.destroy();
   }
 }
 

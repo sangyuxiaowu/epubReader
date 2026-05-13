@@ -37,35 +37,39 @@ const bookmarksBtn = $('#bookmarks-btn');
 
 // ===== 初始化 =====
 async function init() {
-  if (!bookId) { goBack(); return; }
+  try {
+    if (!bookId) { goBack(); return; }
 
-  const arrayBuffer = await dataStore.getItem(bookId);
-  if (!arrayBuffer) { alert('找不到书籍数据，请重新添加。'); goBack(); return; }
+    const arrayBuffer = await dataStore.getItem(bookId);
+    if (!arrayBuffer) { alert('找不到书籍数据，请重新添加。'); goBack(); return; }
 
-  // 显示书名
-  const allBooks = await metaStore.getItem('books') || {};
-  const meta = allBooks[bookId];
-  if (meta) {
-    document.title = `${meta.title} - EPUB 阅读器`;
-    bookTitleDisplay.textContent = meta.title;
+    // 显示书名
+    const allBooks = await metaStore.getItem('books') || {};
+    const meta = allBooks[bookId];
+    if (meta) {
+      document.title = `${meta.title} - EPUB 阅读器`;
+      bookTitleDisplay.textContent = meta.title;
+    }
+
+    // 恢复主题偏好
+    const savedTheme = localStorage.getItem(`theme_${bookId}`) || 'default';
+    applyTheme(savedTheme, false);
+
+    // 恢复字体大小
+    currentFontSize = parseInt(localStorage.getItem(`fontsize_${bookId}`) || '100', 10);
+
+    await loadBook(arrayBuffer);
+    setupControls();
+  } catch (error) {
+    console.error('加载 EPUB 失败:', error);
+    loader.style.display = 'none';
+    alert('加载书籍失败，请重新导入后重试。');
+    goBack();
   }
-
-  // 恢复主题偏好
-  const savedTheme = localStorage.getItem(`theme_${bookId}`) || 'default';
-  applyTheme(savedTheme, false);
-
-  // 恢复字体大小
-  currentFontSize = parseInt(localStorage.getItem(`fontsize_${bookId}`) || '100', 10);
-
-  await loadBook(arrayBuffer);
-  setupControls();
 }
 
 async function loadBook(arrayBuffer) {
-  const blob = new Blob([arrayBuffer], { type: 'application/epub+zip' });
-  const url = URL.createObjectURL(blob);
-
-  book = ePub(url);
+  book = ePub(arrayBuffer);
   rendition = book.renderTo(viewer, { width: '100%', height: '100%', spread: 'none' });
 
   // 注册主题
