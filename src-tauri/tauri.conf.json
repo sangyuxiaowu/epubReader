@@ -4,9 +4,9 @@
   "version": "1.1.2",
   "identifier": "com.sangyuxiaowu.epubreader",
   "build": {
-    "beforeDevCommand": "cnpm run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "cnpm run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
