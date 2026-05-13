@@ -1,5 +1,6 @@
 import localforage from 'localforage';
 import ePub from 'epubjs';
+import { listenDesktopEpubOpen, stashPendingDesktopPaths } from './desktop-files.js';
 
 // ===== 存储实例 =====
 const dataStore = localforage.createInstance({ name: 'epub-reader', storeName: 'data' });
@@ -15,6 +16,7 @@ let currentTheme = 'default';
 let currentSpreadMode = 'single';
 let pendingNoticeResolver = null;
 let currentBookMeta = null;
+let unlistenDesktopEpubOpen = null;
 
 const themes = {
   default: { body: { background: '#f6f4ec', color: '#333333' } },
@@ -64,6 +66,7 @@ const noticeModalConfirm = $('#notice-modal-confirm');
 async function init() {
   try {
     setupNoticeModalEvents();
+    await setupDesktopFileForwarding();
 
     if (!bookId) { goBack(); return; }
 
@@ -510,6 +513,16 @@ function updateProgress(location) {
 }
 
 function goBack() { window.location.href = '/'; }
+
+async function setupDesktopFileForwarding() {
+  if (unlistenDesktopEpubOpen) return;
+
+  unlistenDesktopEpubOpen = await listenDesktopEpubOpen(({ paths }) => {
+    if (paths.length === 0) return;
+    stashPendingDesktopPaths(paths);
+    goBack();
+  });
+}
 
 // ===== 控件事件 =====
 function setupControls() {

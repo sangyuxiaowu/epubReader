@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="EpubFileAssociationIcon" Guid="*">
+        <File
+          Id="EpubFileAssociationIconFile"
+          Source="$(sys.SOURCEFILEDIR)icons\file\icon.ico"
+          Name="epub-file.ico"
+          KeyPath="yes"
+        />
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\Classes\epub-reader.epub\DefaultIcon"
+          Type="string"
+          Value="[INSTALLDIR]epub-file.ico,0"
+        />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

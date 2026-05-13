@@ -1,13 +1,15 @@
 {
   "name": "epub-reader",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prebuild:tauri": "node scripts/sync-tauri-version.cjs && npx tauri icon --output src-tauri/icons doc/app.svg && npx tauri icon --output src-tauri/icons/file doc/file.svg",
+    "build:tauri": "tauri build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

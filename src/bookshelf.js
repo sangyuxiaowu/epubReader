@@ -1,6 +1,11 @@
 import localforage from 'localforage';
 import Sortable from 'sortablejs';
 import ePub from 'epubjs';
+import {
+  listenDesktopEpubOpen,
+  readDesktopEpubFiles,
+  takePendingDesktopPaths,
+} from './desktop-files.js';
 
 // ===== 存储实例 =====
 const metaStore = localforage.createInstance({ name: 'epub-reader', storeName: 'meta' });
@@ -19,6 +24,7 @@ let contextBookId = null;
 let pendingCatAction = null; // { type: 'add' } | { type: 'rename', id }
 let pendingConfirmResolver = null;
 let pendingNoticeResolver = null;
+let pendingDesktopImport = Promise.resolve();
 
 // ===== DOM 引用 =====
 const $ = (sel) => document.querySelector(sel);
@@ -184,15 +190,17 @@ function openBook(id) {
 // ===== 添加书籍 =====
 async function addBooks(files) {
   const epubFiles = [...files].filter((f) => f.name.toLowerCase().endsWith('.epub'));
-  if (epubFiles.length === 0) return;
+  if (epubFiles.length === 0) return [];
 
   loadingOverlay.style.display = 'flex';
+  const importedIds = [];
   try {
     for (const file of epubFiles) {
-      await addSingleBook(file);
+      importedIds.push(await addSingleBook(file));
     }
     renderSidebar();
     renderBooks();
+    return importedIds;
   } catch (err) {
     console.error('添加书籍失败:', err);
     loadingOverlay.style.display = 'none';
@@ -200,6 +208,7 @@ async function addBooks(files) {
       title: '添加书籍失败',
       message: `添加书籍失败: ${err.message}`,
     });
+    return [];
   } finally {
     loadingOverlay.style.display = 'none';
   }
@@ -224,6 +233,50 @@ async function addSingleBook(file) {
   }
 
   await saveData();
+  return id;
+}
+
+function toBrowserFile(desktopFile) {
+  return new File([new Uint8Array(desktopFile.bytes)], desktopFile.fileName, {
+    type: 'application/epub+zip',
+  });
+}
+
+async function importDesktopPaths(paths, openAfterImport = true) {
+  try {
+    const desktopFiles = await readDesktopEpubFiles(paths);
+    if (desktopFiles.length === 0) return;
+
+    const importedIds = await addBooks(desktopFiles.map(toBrowserFile));
+    if (openAfterImport && importedIds.length === 1) {
+      openBook(importedIds[0]);
+    }
+  } catch (error) {
+    console.error('导入桌面文件失败:', error);
+    await showNoticeModal({
+      title: '导入失败',
+      message: `导入外部 EPUB 失败: ${error.message || error}`,
+    });
+  }
+}
+
+function queueDesktopImport(paths, openAfterImport = true) {
+  pendingDesktopImport = pendingDesktopImport
+    .catch(() => {})
+    .then(() => importDesktopPaths(paths, openAfterImport));
+  return pendingDesktopImport;
+}
+
+async function setupDesktopFileHandling() {
+  const pendingPaths = await takePendingDesktopPaths();
+  if (pendingPaths.length > 0) {
+    await queueDesktopImport(pendingPaths, true);
+  }
+
+  await listenDesktopEpubOpen(async ({ paths }) => {
+    if (paths.length === 0) return;
+    await queueDesktopImport(paths, true);
+  });
 }
 
 async function extractMetadata(arrayBuffer) {
@@ -516,6 +569,7 @@ async function init() {
   renderSidebar();
   renderBooks();
   setupEvents();
+  await setupDesktopFileHandling();
 }
 
 init();
