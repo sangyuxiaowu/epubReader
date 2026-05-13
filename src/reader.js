@@ -14,6 +14,7 @@ let currentFontSize = 100; // 百分比
 let currentTheme = 'default';
 let currentSpreadMode = 'single';
 let pendingNoticeResolver = null;
+let currentBookMeta = null;
 
 const themes = {
   default: { body: { background: '#f6f4ec', color: '#333333' } },
@@ -32,6 +33,21 @@ const bookmarksPanel = $('#bookmarks-panel');
 const viewer = $('#viewer');
 const loader = $('#loader');
 const bookTitleDisplay = $('#book-title-display');
+const bookInfoBtn = $('#book-info-btn');
+const bookInfoPanel = $('#book-info-panel');
+const bookInfoCover = $('#book-info-cover');
+const bookInfoCoverPlaceholder = $('#book-info-cover-placeholder');
+const bookInfoTitle = $('#book-info-title');
+const bookInfoAuthor = $('#book-info-author');
+const bookInfoPublisher = $('#book-info-publisher');
+const bookInfoLanguage = $('#book-info-language');
+const bookInfoPubdate = $('#book-info-pubdate');
+const bookInfoIdentifier = $('#book-info-identifier');
+const bookInfoFile = $('#book-info-file');
+const bookInfoModified = $('#book-info-modified');
+const bookInfoAdded = $('#book-info-added');
+const bookInfoDescriptionWrap = $('#book-info-description-wrap');
+const bookInfoDescription = $('#book-info-description');
 const chapterInfo = $('#chapter-info');
 const progressInfo = $('#progress-info');
 const tocBtn = $('#toc-btn');
@@ -66,8 +82,10 @@ async function init() {
     const allBooks = await metaStore.getItem('books') || {};
     const meta = allBooks[bookId];
     if (meta) {
+      currentBookMeta = meta;
       document.title = `${meta.title} - EPUB 阅读器`;
       bookTitleDisplay.textContent = meta.title;
+      updateBookInfoPanel(meta);
     }
 
     // 恢复主题偏好
@@ -110,6 +128,8 @@ async function loadBook(arrayBuffer) {
 
   // 应用已保存字体大小
   rendition.themes.fontSize(`${currentFontSize}%`);
+
+  await loadBookDetails();
 
   // 恢复阅读进度
   const savedCfi = localStorage.getItem(`progress_${bookId}`);
@@ -265,6 +285,112 @@ function togglePanel(panel, btn) {
   }
 }
 
+function updateBookInfoPanel(meta) {
+  const safeMeta = meta || {};
+  if (safeMeta.cover) {
+    bookInfoCover.src = safeMeta.cover;
+    bookInfoCover.hidden = false;
+    bookInfoCoverPlaceholder.hidden = true;
+  } else {
+    bookInfoCover.removeAttribute('src');
+    bookInfoCover.hidden = true;
+    bookInfoCoverPlaceholder.hidden = false;
+  }
+
+  bookInfoTitle.textContent = safeMeta.title || '未命名书籍';
+  bookInfoAuthor.textContent = safeMeta.author || '未知作者';
+  bookInfoPublisher.textContent = safeMeta.publisher || '未知';
+  bookInfoLanguage.textContent = safeMeta.language || '未知';
+  bookInfoPubdate.textContent = formatMetadataDate(safeMeta.pubdate || safeMeta.modified_date) || '未知';
+  bookInfoIdentifier.textContent = safeMeta.identifier || '未知';
+  bookInfoFile.textContent = formatCompactFileName(safeMeta.fileName) || '未知文件';
+  bookInfoFile.title = safeMeta.fileName || '未知文件';
+  bookInfoModified.textContent = formatMetadataDate(safeMeta.modified_date) || '未知';
+  bookInfoAdded.textContent = safeMeta.addedAt ? new Date(safeMeta.addedAt).toLocaleString() : '未知';
+
+  if (safeMeta.description) {
+    bookInfoDescription.textContent = safeMeta.description;
+    bookInfoDescriptionWrap.hidden = false;
+  } else {
+    bookInfoDescription.textContent = '';
+    bookInfoDescriptionWrap.hidden = true;
+  }
+}
+
+async function loadBookDetails() {
+  if (!book) return;
+
+  const metadata = await book.loaded.metadata;
+  const details = {
+    title: metadata.title || currentBookMeta?.title || '',
+    author: metadata.creator || currentBookMeta?.author || '未知作者',
+    publisher: metadata.publisher || currentBookMeta?.publisher || '',
+    language: metadata.language || currentBookMeta?.language || '',
+    pubdate: metadata.pubdate || currentBookMeta?.pubdate || '',
+    identifier: metadata.identifier || currentBookMeta?.identifier || '',
+    rights: metadata.rights || currentBookMeta?.rights || '',
+    description: metadata.description || currentBookMeta?.description || '',
+    modified_date: metadata.modified_date || currentBookMeta?.modified_date || '',
+  };
+
+  let cover = currentBookMeta?.cover || '';
+  if (!cover) {
+    try {
+      cover = await book.coverUrl() || '';
+    } catch (_) {
+      cover = '';
+    }
+  }
+
+  currentBookMeta = {
+    ...(currentBookMeta || {}),
+    ...details,
+    cover,
+  };
+
+  updateBookInfoPanel(currentBookMeta);
+  await persistCurrentBookMeta();
+}
+
+async function persistCurrentBookMeta() {
+  if (!currentBookMeta || !bookId) return;
+  const allBooks = await metaStore.getItem('books') || {};
+  if (!allBooks[bookId]) return;
+  allBooks[bookId] = { ...allBooks[bookId], ...currentBookMeta };
+  await metaStore.setItem('books', allBooks);
+}
+
+function formatMetadataDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
+}
+
+function formatCompactFileName(fileName) {
+  if (!fileName) return '';
+  if (fileName.length <= 30) return fileName;
+  return `${fileName.slice(0, 16)}...${fileName.slice(-11)}`;
+}
+
+function closeBookInfoPanel() {
+  bookInfoPanel.hidden = true;
+  bookInfoBtn.classList.remove('info-open');
+  bookInfoBtn.setAttribute('aria-expanded', 'false');
+}
+
+function openBookInfoPanel() {
+  updateBookInfoPanel(currentBookMeta);
+  bookInfoPanel.hidden = false;
+  bookInfoBtn.classList.add('info-open');
+  bookInfoBtn.setAttribute('aria-expanded', 'true');
+}
+
+function toggleBookInfoPanel() {
+  if (bookInfoPanel.hidden) openBookInfoPanel();
+  else closeBookInfoPanel();
+}
+
 function closeSettingsPanel() {
   settingsPanel.hidden = true;
   settingsBtn.classList.remove('settings-open');
@@ -417,6 +543,11 @@ function setupControls() {
     btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
   });
 
+  bookInfoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleBookInfoPanel();
+  });
+
   settingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleSettingsPanel();
@@ -432,6 +563,10 @@ function setupControls() {
 
   // 点击侧边栏外关闭
   document.addEventListener('click', (e) => {
+    if (!bookInfoPanel.hidden && !bookInfoPanel.contains(e.target) && !bookInfoBtn.contains(e.target)) {
+      closeBookInfoPanel();
+    }
+
     if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
       closeSettingsPanel();
     }
@@ -444,6 +579,10 @@ function setupControls() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !settingsPanel.hidden) {
       closeSettingsPanel();
+    }
+
+    if (e.key === 'Escape' && !bookInfoPanel.hidden) {
+      closeBookInfoPanel();
     }
   });
 }

@@ -39,7 +39,64 @@
         </div>
 
         <div class="topbar-center">
-          <span id="book-title-display"></span>
+          <div class="book-info-menu">
+            <button id="book-info-btn" type="button" aria-label="查看书籍信息" aria-haspopup="dialog" aria-expanded="false">
+              <span id="book-title-display"></span>
+              <span class="book-info-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="book-info-panel" class="book-info-panel" hidden>
+              <div class="book-info-header">
+                <div class="book-info-cover-wrap">
+                  <img id="book-info-cover" alt="书籍封面" hidden />
+                  <div id="book-info-cover-placeholder" class="book-info-cover-placeholder">📘</div>
+                </div>
+                <div class="book-info-meta">
+                  <div class="book-info-row">
+                    <span class="book-info-label">书名</span>
+                    <span id="book-info-title" class="book-info-value"></span>
+                  </div>
+                  <div class="book-info-row">
+                    <span class="book-info-label">作者</span>
+                    <span id="book-info-author" class="book-info-value"></span>
+                  </div>
+                  <div class="book-info-row book-info-file-row">
+                    <span class="book-info-label">文件</span>
+                    <span id="book-info-file" class="book-info-value book-info-file-value"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="book-info-facts">
+                <div class="book-info-row">
+                  <span class="book-info-label">出版社</span>
+                  <span id="book-info-publisher" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">语言</span>
+                  <span id="book-info-language" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">出版日期</span>
+                  <span id="book-info-pubdate" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">标识</span>
+                  <span id="book-info-identifier" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">更新</span>
+                  <span id="book-info-modified" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">导入</span>
+                  <span id="book-info-added" class="book-info-value"></span>
+                </div>
+              </div>
+              <div class="book-info-description" id="book-info-description-wrap" hidden>
+                <div class="book-info-label">简介</div>
+                <div id="book-info-description" class="book-info-description-text"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="topbar-right">
