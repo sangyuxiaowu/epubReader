@@ -1,0 +1,9 @@
+{
+  "identifier": "default",
+  "description": "Capability for all bookshelf and reader windows",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "dialog:default"
+  ]
+}

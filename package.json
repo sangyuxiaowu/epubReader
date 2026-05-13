@@ -1,0 +1,30 @@
+{
+  "name": "epub-reader",
+  "private": true,
+  "version": "1.1.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "release": "node scripts/release.cjs",
+    "tauri": "tauri",
+    "prebuild:tauri": "node scripts/sync-tauri-version.cjs && npx tauri icon --output src-tauri/icons doc/app.svg && npx tauri icon --output src-tauri/icons/file doc/file.svg",
+    "build:tauri": "tauri build",
+    "dev:tauri": "tauri dev"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "epubjs": "^0.3.93",
+    "localforage": "^1.10.0",
+    "sortablejs": "^1.15.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "vite": "^6.2.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.13"
+  }
+}

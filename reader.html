@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>阅读中 - EPUB 阅读器</title>
+    <link rel="stylesheet" href="/src/reader.css" />
+  </head>
+  <body>
+    <!-- 侧边面板 -->
+    <div id="reader-sidebar">
+      <div id="toc-panel">
+        <div class="panel-header"><h3>目录</h3></div>
+        <ul id="toc-list"></ul>
+      </div>
+      <div id="bookmarks-panel" hidden>
+        <div class="panel-header"><h3>书签</h3></div>
+        <ul id="bookmarks-list"></ul>
+        <div id="bookmarks-empty" hidden>
+          <p>暂无书签</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主阅读区 -->
+    <div id="reader-main">
+      <!-- 顶栏 -->
+      <div id="reader-topbar">
+        <div class="topbar-left">
+          <button id="back-btn" title="返回书架" aria-label="返回书架">
+            <span class="back-btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                <path d="M624.788992 204.047974 585.205965 164.464026 219.560038 530.185011 585.205965 895.864013 624.788992 856.280986 298.663014 530.16105Z"></path>
+              </svg>
+            </span>
+          </button>
+          <button id="toc-btn" title="目录" class="icon-btn active-indicator" data-panel="toc">目录</button>
+          <button id="bookmarks-btn" title="书签" class="icon-btn active-indicator" data-panel="bookmarks">书签</button>
+        </div>
+
+        <div class="topbar-center">
+          <div class="book-info-menu">
+            <button id="book-info-btn" type="button" aria-label="查看书籍信息" aria-haspopup="dialog" aria-expanded="false">
+              <span id="book-title-display"></span>
+              <span class="book-info-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="book-info-panel" class="book-info-panel" hidden>
+              <div class="book-info-header">
+                <div class="book-info-cover-wrap">
+                  <img id="book-info-cover" alt="书籍封面" hidden />
+                  <div id="book-info-cover-placeholder" class="book-info-cover-placeholder">📘</div>
+                </div>
+                <div class="book-info-meta">
+                  <div class="book-info-row">
+                    <span class="book-info-label">书名</span>
+                    <span id="book-info-title" class="book-info-value"></span>
+                  </div>
+                  <div class="book-info-row">
+                    <span class="book-info-label">作者</span>
+                    <span id="book-info-author" class="book-info-value"></span>
+                  </div>
+                  <div class="book-info-row book-info-file-row">
+                    <span class="book-info-label">文件</span>
+                    <span id="book-info-file" class="book-info-value book-info-file-value"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="book-info-facts">
+                <div class="book-info-row">
+                  <span class="book-info-label">出版社</span>
+                  <span id="book-info-publisher" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">语言</span>
+                  <span id="book-info-language" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">出版日期</span>
+                  <span id="book-info-pubdate" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">标识</span>
+                  <span id="book-info-identifier" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">更新</span>
+                  <span id="book-info-modified" class="book-info-value"></span>
+                </div>
+                <div class="book-info-row">
+                  <span class="book-info-label">导入</span>
+                  <span id="book-info-added" class="book-info-value"></span>
+                </div>
+              </div>
+              <div class="book-info-description" id="book-info-description-wrap" hidden>
+                <div class="book-info-label">简介</div>
+                <div id="book-info-description" class="book-info-description-text"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <button id="add-bookmark-btn" title="添加书签" class="icon-btn">🔖</button>
+          <button id="font-size-down" title="缩小字体" class="icon-btn">A<sup>－</sup></button>
+          <button id="font-size-up" title="放大字体" class="icon-btn">A<sup>＋</sup></sup></button>
+          <div class="settings-menu">
+            <button id="settings-btn" title="阅读设置" class="icon-btn" aria-label="阅读设置" aria-haspopup="dialog" aria-expanded="false">
+              <span class="settings-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"></path>
+                </svg>
+              </span>
+            </button>
+            <div id="settings-panel" class="settings-panel" hidden>
+              <div class="settings-section">
+                <label class="settings-label" for="font-select">字体</label>
+                <select id="font-select" title="字体">
+                  <option value="">默认字体</option>
+                  <option value="黑体">黑体</option>
+                  <option value="微软雅黑">微软雅黑</option>
+                  <option value="宋体">宋体</option>
+                  <option value="等线">等线</option>
+                </select>
+              </div>
+              <div class="settings-section">
+                <div class="settings-label">主题</div>
+                <div id="theme-btns" role="group" aria-label="阅读主题">
+                  <button data-theme="default" title="浅色主题" class="theme-btn active" aria-pressed="true">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">浅</span>
+                  </button>
+                  <button data-theme="sepia" title="米色主题" class="theme-btn" aria-pressed="false">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">米</span>
+                  </button>
+                  <button data-theme="night" title="夜间主题" class="theme-btn" aria-pressed="false">
+                    <span class="theme-btn-swatch" aria-hidden="true"></span>
+                    <span class="theme-btn-label">夜</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 阅读器 -->
+      <div id="viewer-area">
+        <button id="prev-btn" class="nav-btn" title="上一页">‹</button>
+        <div id="viewer"></div>
+        <button id="next-btn" class="nav-btn" title="下一页">›</button>
+      </div>
+
+      <!-- 底部进度 -->
+      <div id="reader-footer">
+        <div class="footer-meta">
+          <span id="chapter-info"></span>
+          <span id="progress-info"></span>
+        </div>
+        <div id="spread-btns" role="group" aria-label="页面显示模式">
+          <button type="button" class="spread-btn active" data-spread="single" aria-pressed="true">单页</button>
+          <button type="button" class="spread-btn" data-spread="double" aria-pressed="false">双页</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="modal-overlay">
+      <div class="modal-box confirm-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <h3 id="confirm-modal-title">确认移除</h3>
+        <p id="confirm-modal-message"></p>
+        <div class="modal-btns">
+          <button id="confirm-modal-cancel" class="btn-secondary">取消</button>
+          <button id="confirm-modal-confirm" class="btn-primary btn-danger">移除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="notice-modal" class="modal-overlay">
+      <div class="modal-box notice-modal-box" role="dialog" aria-modal="true" aria-labelledby="notice-modal-title">
+        <h3 id="notice-modal-title">提示</h3>
+        <p id="notice-modal-message"></p>
+        <div class="modal-btns">
+          <button id="notice-modal-confirm" class="btn-primary">知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 初始加载遮罩 -->
+    <div id="loader">
+      <div class="spinner"></div>
+      <p>正在加载书籍…</p>
+    </div>
+
+    <script type="module" src="/src/reader.js"></script>
+  </body>
+</html>
